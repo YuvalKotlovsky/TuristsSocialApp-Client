@@ -1,0 +1,30 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "express": "*",
+    "mongoose": "*",
+    "cors": "*",
+    "dotenv": "*",
+    "bcryptjs": "*",
+    "jsonwebtoken": "*",
+    "multer": "*",
+    "morgan": "*"
+  },
+  "devDependencies": {
+    "typescript": "*",
+    "ts-node-dev": "*",
+    "@types/express": "*",
+    "@types/cors": "*",
+    "@types/bcryptjs": "*",
+    "@types/jsonwebtoken": "*",
+    "@types/multer": "*",
+    "@types/node": "*",
+    "@types/morgan": "*"
+  }
+}
