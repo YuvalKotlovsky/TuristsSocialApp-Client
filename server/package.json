@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "NODE_ENV=test jest --runInBand --forceExit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -25,14 +26,19 @@
     "@types/bcryptjs": "*",
     "@types/cors": "*",
     "@types/express": "*",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "*",
     "@types/morgan": "*",
     "@types/multer": "*",
     "@types/node": "*",
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
+    "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
     "ts-node-dev": "*",
     "typescript": "*"
   }

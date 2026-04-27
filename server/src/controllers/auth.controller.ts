@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { StringValue } from "ms";
@@ -165,14 +166,27 @@ export async function refresh(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    await RefreshToken.deleteOne({ token: incomingRefreshToken });
+
     const accessSecret = process.env.JWT_ACCESS_SECRET || "dev_access_secret";
+    const refreshSecret2 = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret";
     const accessExpires = (process.env.JWT_ACCESS_EXPIRES || "15m") as StringValue;
+    const refreshExpires = (process.env.JWT_REFRESH_EXPIRES || "7d") as StringValue;
 
     const tokenPayload = { userId: user._id.toString(), email: user.email };
     const accessToken = jwt.sign(tokenPayload, accessSecret, { expiresIn: accessExpires });
+    const newRefreshToken = jwt.sign(tokenPayload, refreshSecret2, {
+      expiresIn: refreshExpires,
+      jwtid: crypto.randomUUID(),
+    });
 
-    // Keep refresh-token rotation disabled for minimal, architecture-safe behavior.
-    res.status(200).json({ accessToken, refreshToken: incomingRefreshToken });
+    await RefreshToken.create({
+      token: newRefreshToken,
+      userId: user._id,
+      expiresAt: getRefreshTokenExpiryDate(newRefreshToken),
+    });
+
+    res.status(200).json({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {
     console.error("Refresh error:", error);
     res.status(500).json({ message: "Internal server error" });
