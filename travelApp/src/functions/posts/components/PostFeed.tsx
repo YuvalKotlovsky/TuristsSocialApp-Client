@@ -86,6 +86,7 @@ export default function PostsFeed({
                   }`}
                 />
                 <span className="text-sm">{post.likesCount}</span>
+                <span className="text-sm">Likes</span>
               </Button>
 
               <Button
@@ -96,6 +97,7 @@ export default function PostsFeed({
               >
                 <MessageCircle className="size-5" />
                 <span className="text-sm">{post.commentsCount}</span>
+                <span className="text-sm">Comments</span>
               </Button>
             </div>
           </div>

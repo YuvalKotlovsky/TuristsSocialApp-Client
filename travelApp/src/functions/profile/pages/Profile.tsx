@@ -37,8 +37,7 @@ export default function Profile() {
 
     void (async () => {
       try {
-        const { data } = await api.get<ProfileResponse>('/profile');
-        dispatch(updateUser(data.user));
+        const data = await getUserPosts(currentUser.id, 1, 20);
         setPosts(data.posts);
       } finally {
         setLoading(false);

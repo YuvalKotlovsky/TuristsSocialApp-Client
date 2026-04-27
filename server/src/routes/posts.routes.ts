@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import { Post } from "../models";
+import { Comment, Post } from "../models";
 import { uploadPost } from "../middleware/upload.middleware";
 import { verifyAccessToken } from "../middleware/auth.middleware";
 
@@ -39,11 +39,25 @@ router.get("/feed", async (req: Request, res: Response) => {
       Post.countDocuments(),
     ]);
 
+    const postIds = posts.map((post) => post._id);
+    const commentCountRows =
+      postIds.length > 0
+        ? await Comment.aggregate<{ _id: string; count: number }>([
+            { $match: { postId: { $in: postIds } } },
+            { $group: { _id: "$postId", count: { $sum: 1 } } },
+          ])
+        : [];
+
+    const commentCountByPostId = new Map(
+      commentCountRows.map((row) => [String(row._id), row.count])
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     const postsWithLike = posts.map((post) => ({
       ...post.toObject(),
       isLikedByMe: post.likes.some((id) => id.toString() === req.user!.userId),
+      commentsCount: commentCountByPostId.get(post._id.toString()) ?? 0,
     }));
 
     res.json({ posts: postsWithLike, total, page, totalPages, hasMore: page < totalPages });
@@ -60,10 +74,14 @@ router.get("/:id", async (req: Request, res: Response) => {
       res.status(404).json({ message: "Post not found" });
       return;
     }
+
+    const commentsCount = await Comment.countDocuments({ postId: post._id });
+
     res.json({
       post: {
         ...post.toObject(),
         isLikedByMe: post.likes.some((id) => id.toString() === req.user!.userId),
+        commentsCount,
       },
     });
   } catch (err) {
@@ -82,7 +100,12 @@ router.post("/", uploadPost, async (req: Request, res: Response) => {
     const image = req.file ? buildImageUrl(req, req.file.filename, "posts") : undefined;
     const post = await Post.create({ content, location, image, createdBy: req.user!.userId });
     const populated = await post.populate("createdBy", "fullName avatar email");
-    res.status(201).json({ post: populated });
+    res.status(201).json({
+      post: {
+        ...populated.toObject(),
+        commentsCount: 0,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: "Failed to create post", error: err });
   }
@@ -118,7 +141,13 @@ router.put("/:id", uploadPost, async (req: Request, res: Response) => {
 
     await post.save();
     const populated = await post.populate("createdBy", "fullName avatar email");
-    res.json({ post: populated });
+    const commentsCount = await Comment.countDocuments({ postId: populated._id });
+    res.json({
+      post: {
+        ...populated.toObject(),
+        commentsCount,
+      },
+    });
   } catch (err) {
     res.status(500).json({ message: "Failed to update post", error: err });
   }
@@ -144,10 +173,12 @@ router.post("/:id/like", async (req: Request, res: Response) => {
 
     await post.save();
     const populated = await post.populate("createdBy", "fullName avatar email");
+    const commentsCount = await Comment.countDocuments({ postId: populated._id });
     res.json({
       post: {
         ...populated.toObject(),
         isLikedByMe: !alreadyLiked,
+        commentsCount,
       },
     });
   } catch (err) {
