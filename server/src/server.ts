@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes";
 import postsRoutes from "./routes/posts.routes";
 import commentsRoutes from "./routes/comments.routes";
+import usersRoutes from "./routes/users.routes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/comments", commentsRoutes);
+app.use("/api/users", usersRoutes);
 
 app.get("/", (_req, res) => {
   res.json({ message: "Server is running" });
