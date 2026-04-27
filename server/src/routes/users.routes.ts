@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
-import { User, Post } from "../models";
+import { User, Post, Comment } from "../models";
 import { verifyAccessToken, optionalAuth } from "../middleware/auth.middleware";
 import { uploadAvatar } from "../middleware/upload.middleware";
 
@@ -78,6 +78,19 @@ router.get("/:userId/posts", optionalAuth, async (req: Request, res: Response) =
       Post.countDocuments({ createdBy: req.params.userId }),
     ]);
 
+    const postIds = posts.map((post) => post._id);
+    const commentCountRows =
+      postIds.length > 0
+        ? await Comment.aggregate<{ _id: string; count: number }>([
+            { $match: { postId: { $in: postIds } } },
+            { $group: { _id: "$postId", count: { $sum: 1 } } },
+          ])
+        : [];
+
+    const commentCountByPostId = new Map(
+      commentCountRows.map((row) => [String(row._id), row.count])
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     const postsWithLike = posts.map((post) => ({
@@ -85,6 +98,7 @@ router.get("/:userId/posts", optionalAuth, async (req: Request, res: Response) =
       isLikedByMe: req.user
         ? post.likes.some((id) => id.toString() === req.user!.userId)
         : false,
+      commentsCount: commentCountByPostId.get(post._id.toString()) ?? 0,
     }));
 
     res.json({ posts: postsWithLike, total, page, totalPages, hasMore: page < totalPages });

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, ArrowLeft, Heart, Send, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, ArrowLeft, Heart, MessageCircle, Send, Pencil, Trash2 } from 'lucide-react';
 import {
   getPostById,
   toggleLike,
@@ -165,11 +165,17 @@ export default function PostPage() {
               >
                 <Heart className={`size-5 ${post.isLikedByMe ? 'fill-red-500 text-red-500' : ''}`} />
                 <span className="text-sm">{post.likesCount}</span>
+                <span className="text-sm">Likes</span>
               </Button>
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <span>{post.commentsCount}</span>
-                <span>Comments</span>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 text-muted-foreground"
+              >
+                <MessageCircle className="size-5" />
+                <span className="text-sm">{post.commentsCount}</span>
+                <span className="text-sm">Comments</span>
+              </Button>
             </div>
           </div>
         </Card>
