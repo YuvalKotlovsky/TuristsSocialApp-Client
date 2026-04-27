@@ -15,7 +15,9 @@
     "jsonwebtoken": "*",
     "mongoose": "*",
     "morgan": "*",
-    "multer": "*"
+    "multer": "*",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "*",
@@ -25,6 +27,8 @@
     "@types/morgan": "*",
     "@types/multer": "*",
     "@types/node": "*",
+    "@types/passport": "^1.0.17",
+    "@types/passport-google-oauth20": "^2.0.17",
     "ts-node-dev": "*",
     "typescript": "*"
   }

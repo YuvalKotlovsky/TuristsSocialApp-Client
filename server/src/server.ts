@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import passport from "./config/passport";
 import authRoutes from "./routes/auth.routes";
 import postsRoutes from "./routes/posts.routes";
 import commentsRoutes from "./routes/comments.routes";
@@ -21,6 +22,7 @@ app.use(
 );
 app.use(morgan("dev"));
 app.use(express.json());
+app.use(passport.initialize());
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/comments", commentsRoutes);
