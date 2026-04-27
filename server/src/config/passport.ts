@@ -12,6 +12,7 @@ passport.use(
     },
     async (_accessToken, _refreshToken, profile, done) => {
       try {
+        console.log("[passport] Google profile received:", JSON.stringify(profile, null, 2));
         const email = profile.emails?.[0]?.value;
         const googleId = profile.id;
 
@@ -44,6 +45,7 @@ passport.use(
 
         return done(null, asExpressUser(user));
       } catch (err) {
+        console.error("[passport] Google strategy error:", err);
         return done(err as Error);
       }
     }

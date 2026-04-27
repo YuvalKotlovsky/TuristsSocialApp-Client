@@ -27,6 +27,7 @@ router.get(
   passport.authenticate("google", { session: false, failureRedirect: "/" }),
   async (req: Request, res: Response) => {
     try {
+      console.log("req.user:", req.user);
       const user = req.user as unknown as IUser;
 
       const accessSecret = process.env.JWT_ACCESS_SECRET || "dev_access_secret";
@@ -53,12 +54,15 @@ router.get(
         expiresAt: new Date(decoded.exp * 1000),
       });
 
+      const { passwordHash: _ph, ...userObj } = user.toObject();
+      const userParam = encodeURIComponent(JSON.stringify(userObj));
+
       const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-      res.redirect(
-        `${clientUrl}/oauth-callback?accessToken=${accessToken}&refreshToken=${refreshToken}`
-      );
+      const redirectUrl = `${clientUrl}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&user=${userParam}`;
+      console.log("[oauth/callback] redirecting to:", redirectUrl);
+      res.redirect(redirectUrl);
     } catch (err) {
-      console.error("OAuth callback error:", err);
+      console.error("[oauth/callback] error:", err);
       res.redirect("/");
     }
   }
