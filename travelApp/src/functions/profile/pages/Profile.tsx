@@ -16,6 +16,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const currentUser = useAppSelector((s) => s.auth.user);
+  const currentUserId = currentUser?.id ?? currentUser?._id;
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,20 +31,20 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!currentUser?.id) {
+    if (!currentUserId) {
       setLoading(false);
       return;
     }
 
     void (async () => {
       try {
-        const data = await getUserPosts(currentUser.id, 1, 20);
+        const data = await getUserPosts(currentUserId, 1, 20);
         setPosts(data.posts);
       } finally {
         setLoading(false);
       }
     })();
-  }, [currentUser?.id]);
+  }, [currentUserId]);
 
   const handleEditStart = () => {
     setTempName(currentUser?.fullName ?? '');
@@ -62,18 +63,32 @@ export default function Profile() {
       if (avatarFile) {
         const form = new FormData();
         form.append('avatar', avatarFile);
-        const { data: updated } = await api.post<{
-          id: string; fullName: string; email: string; avatar?: string | null;
-        }>('/profile/avatar', form);
-        dispatch(updateUser(updated));
+        const { data } = await api.put<{
+          user: { id?: string; _id?: string; fullName: string; email: string; avatar?: string | null };
+        }>('/users/me', form);
+        dispatch(
+          updateUser({
+            id: data.user.id ?? data.user._id ?? currentUserId ?? '',
+            fullName: data.user.fullName,
+            email: data.user.email,
+            avatar: data.user.avatar,
+          })
+        );
       }
 
       // Update name / email
-      const { data: updated } = await api.put<{
-        id: string; fullName: string; email: string; avatar?: string | null;
-      }>('/profile', { fullName: tempName.trim(), email: tempEmail.trim() });
+      const { data } = await api.put<{
+        user: { id?: string; _id?: string; fullName: string; email: string; avatar?: string | null };
+      }>('/users/me', { fullName: tempName.trim(), email: tempEmail.trim() });
 
-      dispatch(updateUser(updated));
+      dispatch(
+        updateUser({
+          id: data.user.id ?? data.user._id ?? currentUserId ?? '',
+          fullName: data.user.fullName,
+          email: data.user.email,
+          avatar: data.user.avatar,
+        })
+      );
       setIsEditing(false);
     } catch {
       setError('Failed to save changes. Please try again.');
