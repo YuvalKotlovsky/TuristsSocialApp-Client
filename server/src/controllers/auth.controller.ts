@@ -120,3 +120,61 @@ export async function login(req: Request, res: Response): Promise<void> {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+export async function refresh(req: Request, res: Response): Promise<void> {
+  try {
+    const incomingRefreshToken = String(req.body.refreshToken || "").trim();
+    if (!incomingRefreshToken) {
+      res.status(400).json({ message: "refreshToken is required" });
+      return;
+    }
+
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || "dev_refresh_secret";
+    let decoded: jwt.JwtPayload | string;
+
+    try {
+      decoded = jwt.verify(incomingRefreshToken, refreshSecret);
+    } catch {
+      res.status(401).json({ message: "Invalid or expired refresh token" });
+      return;
+    }
+
+    const refreshRecord = await RefreshToken.findOne({
+      token: incomingRefreshToken,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (!refreshRecord) {
+      res.status(401).json({ message: "Refresh token not found or expired" });
+      return;
+    }
+
+    const tokenUserId =
+      typeof decoded === "object"
+        ? String(decoded.userId || decoded.sub || "")
+        : "";
+
+    if (!tokenUserId || refreshRecord.userId.toString() !== tokenUserId) {
+      res.status(401).json({ message: "Refresh token user mismatch" });
+      return;
+    }
+
+    const user = await User.findById(refreshRecord.userId).lean();
+    if (!user) {
+      res.status(401).json({ message: "User not found" });
+      return;
+    }
+
+    const accessSecret = process.env.JWT_ACCESS_SECRET || "dev_access_secret";
+    const accessExpires = (process.env.JWT_ACCESS_EXPIRES || "15m") as StringValue;
+
+    const tokenPayload = { userId: user._id.toString(), email: user.email };
+    const accessToken = jwt.sign(tokenPayload, accessSecret, { expiresIn: accessExpires });
+
+    // Keep refresh-token rotation disabled for minimal, architecture-safe behavior.
+    res.status(200).json({ accessToken, refreshToken: incomingRefreshToken });
+  } catch (error) {
+    console.error("Refresh error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
