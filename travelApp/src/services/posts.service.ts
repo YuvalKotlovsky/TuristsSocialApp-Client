@@ -63,6 +63,18 @@ export async function getFeed(
   return { ...data, posts: data.posts.map(normalizePost) };
 }
 
+// GET /api/users/:userId/posts?page=&limit=
+export async function getUserPosts(
+  userId: string,
+  page = 1,
+  limit = 20
+): Promise<PaginatedResponse<Post>> {
+  const { data } = await api.get<PaginatedResponse<ApiPost>>(
+    `/users/${userId}/posts?page=${page}&limit=${limit}`
+  );
+  return { ...data, posts: data.posts.map(normalizePost) };
+}
+
 // GET /api/posts/:id
 export async function getPostById(postId: string): Promise<Post | null> {
   try {

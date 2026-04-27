@@ -71,6 +71,9 @@ export default function Home() {
   }, [hasMore, loadingMore, page, loadPage, isSearching]);
 
   const handleLike = async (postId: string) => {
+    const prevDisplayedPosts = displayedPosts;
+    const prevAllPosts = allPosts;
+
     // Optimistic update on both displayed + all
     const optimistic = (posts: Post[]) =>
       posts.map((p) =>
@@ -83,7 +86,11 @@ export default function Home() {
     setAllPosts(optimistic);
 
     const updated = await toggleLike(postId);
-    if (!updated) return;
+    if (!updated) {
+      setDisplayedPosts(prevDisplayedPosts);
+      setAllPosts(prevAllPosts);
+      return;
+    }
 
     const sync = (posts: Post[]) =>
       posts.map((p) =>
