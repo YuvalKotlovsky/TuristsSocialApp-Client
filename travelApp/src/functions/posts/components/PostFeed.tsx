@@ -27,7 +27,7 @@ export default function PostsFeed({
           <div className="flex items-center gap-3 p-4 border-b border-border">
             <Avatar className="size-10">
               <AvatarImage
-                src={post.createdBy.avatar}
+                src={post.createdBy.avatar ?? undefined}
                 alt={post.createdBy.fullName}
               />
               <AvatarFallback className="bg-primary/10 text-primary text-sm">

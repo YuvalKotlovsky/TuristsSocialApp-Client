@@ -27,7 +27,7 @@ export default function PostForm({
 }: PostFormProps) {
   const [content, setContent] = useState(initialValues?.content ?? "");
   const [location, setLocation] = useState(initialValues?.location ?? "");
-  const [image, setImage] = useState<string | undefined>(initialValues?.image);
+  const [image, setImage] = useState<string | undefined>(initialValues?.image ?? undefined);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
