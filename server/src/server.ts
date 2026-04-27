@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes";
 import postsRoutes from "./routes/posts.routes";
 import commentsRoutes from "./routes/comments.routes";
 import usersRoutes from "./routes/users.routes";
+import aiRoutes from "./routes/ai.routes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/comments", commentsRoutes);
 app.use("/api/users", usersRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/", (_req, res) => {
   res.json({ message: "Server is running" });
