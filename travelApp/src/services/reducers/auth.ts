@@ -8,6 +8,21 @@ interface AuthState {
   isUserLoggedIn: boolean;
 }
 
+function normalizeUser(user: Partial<User> | null | undefined): User | null {
+  if (!user) return null;
+
+  const id = user.id ?? user._id;
+  if (!id || !user.fullName || !user.email) return null;
+
+  return {
+    id,
+    _id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    avatar: user.avatar,
+  };
+}
+
 const STORAGE_KEY = 'travel_auth';
 
 function loadFromStorage(): Partial<AuthState> {
@@ -34,7 +49,7 @@ function persist(state: AuthState) {
 const saved = loadFromStorage();
 
 const initialState: AuthState = {
-  user: saved.user ?? null,
+  user: normalizeUser(saved.user),
   accessToken: saved.accessToken ?? null,
   refreshToken: saved.refreshToken ?? null,
   isUserLoggedIn: saved.isUserLoggedIn ?? false,
@@ -48,7 +63,7 @@ const authSlice = createSlice({
       state,
       action: PayloadAction<{ user: User; accessToken: string; refreshToken: string }>
     ) {
-      state.user = action.payload.user;
+      state.user = normalizeUser(action.payload.user);
       state.accessToken = action.payload.accessToken;
       state.refreshToken = action.payload.refreshToken;
       state.isUserLoggedIn = true;
@@ -70,7 +85,7 @@ const authSlice = createSlice({
       persist(state);
     },
     updateUser(state, action: PayloadAction<User>) {
-      state.user = action.payload;
+      state.user = normalizeUser(action.payload);
       persist(state);
     },
   },
