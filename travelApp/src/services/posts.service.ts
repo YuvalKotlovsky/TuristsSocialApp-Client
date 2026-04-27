@@ -15,8 +15,8 @@ export async function getFeed(
 // GET /api/posts/:id
 export async function getPostById(postId: string): Promise<Post | null> {
   try {
-    const { data } = await api.get<Post>(`/posts/${postId}`);
-    return data;
+    const { data } = await api.get<{ post: Post }>(`/posts/${postId}`);
+    return data.post;
   } catch {
     return null;
   }
@@ -33,8 +33,8 @@ export async function createPost(data: {
   if (data.location) form.append('location', data.location);
   if (data.imageFile) form.append('image', data.imageFile);
 
-  const { data: post } = await api.post<Post>('/posts', form);
-  return post;
+  const response = await api.post<{ post: Post }>('/posts', form);
+  return response.data.post;
 }
 
 // PUT /api/posts/:id  (multipart/form-data)
@@ -53,8 +53,8 @@ export async function updatePost(
   if (data.imageFile) form.append('image', data.imageFile);
   if (data.removeImage) form.append('removeImage', 'true');
 
-  const { data: post } = await api.put<Post>(`/posts/${postId}`, form);
-  return post;
+  const { data: response } = await api.put<{ post: Post }>(`/posts/${postId}`, form);
+  return response.post;
 }
 
 // DELETE /api/posts/:id
@@ -65,8 +65,8 @@ export async function deletePost(postId: string): Promise<void> {
 // POST /api/posts/:id/like
 export async function toggleLike(postId: string): Promise<Post | null> {
   try {
-    const { data } = await api.post<Post>(`/posts/${postId}/like`);
-    return data;
+    const { data } = await api.post<{ post: Post }>(`/posts/${postId}/like`);
+    return data.post;
   } catch {
     return null;
   }
