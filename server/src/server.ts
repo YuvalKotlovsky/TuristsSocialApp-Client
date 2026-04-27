@@ -5,6 +5,8 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger";
 import passport from "./config/passport";
 import authRoutes from "./routes/auth.routes";
 import postsRoutes from "./routes/posts.routes";
@@ -29,6 +31,7 @@ app.use("/api/posts", postsRoutes);
 app.use("/api/comments", commentsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get("/", (_req, res) => {
   res.json({ message: "Server is running" });

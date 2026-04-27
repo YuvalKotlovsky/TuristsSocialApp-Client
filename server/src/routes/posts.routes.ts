@@ -23,7 +23,39 @@ function deleteImageFile(imageUrl: string, folder: string) {
   } catch {}
 }
 
-// GET /feed
+/**
+ * @openapi
+ * /posts/feed:
+ *   get:
+ *     tags: [Posts]
+ *     summary: Get paginated post feed
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Paginated list of posts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedPosts'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/feed", async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -66,7 +98,37 @@ router.get("/feed", async (req: Request, res: Response) => {
   }
 });
 
-// GET /:id
+/**
+ * @openapi
+ * /posts/{id}:
+ *   get:
+ *     tags: [Posts]
+ *     summary: Get a single post by ID
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Post found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 post:
+ *                   $ref: '#/components/schemas/Post'
+ *       404:
+ *         description: Post not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.id).populate("createdBy", "fullName avatar email");
@@ -89,7 +151,47 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
-// POST /
+/**
+ * @openapi
+ * /posts:
+ *   post:
+ *     tags: [Posts]
+ *     summary: Create a new post
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 maxLength: 2000
+ *               location:
+ *                 type: string
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Post created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 post:
+ *                   $ref: '#/components/schemas/Post'
+ *       400:
+ *         description: Content is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post("/", uploadPost, async (req: Request, res: Response) => {
   try {
     const { content, location } = req.body;
@@ -111,7 +213,61 @@ router.post("/", uploadPost, async (req: Request, res: Response) => {
   }
 });
 
-// PUT /:id
+/**
+ * @openapi
+ * /posts/{id}:
+ *   put:
+ *     tags: [Posts]
+ *     summary: Update a post (owner only)
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *                 maxLength: 2000
+ *               location:
+ *                 type: string
+ *               removeImage:
+ *                 type: string
+ *                 enum: ['true']
+ *                 description: Pass 'true' to remove the existing image
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Post updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 post:
+ *                   $ref: '#/components/schemas/Post'
+ *       403:
+ *         description: Not authorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Post not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put("/:id", uploadPost, async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -153,7 +309,37 @@ router.put("/:id", uploadPost, async (req: Request, res: Response) => {
   }
 });
 
-// POST /:id/like
+/**
+ * @openapi
+ * /posts/{id}/like:
+ *   post:
+ *     tags: [Posts]
+ *     summary: Toggle like on a post
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Like toggled
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 post:
+ *                   $ref: '#/components/schemas/Post'
+ *       404:
+ *         description: Post not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post("/:id/like", async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -186,7 +372,43 @@ router.post("/:id/like", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /:id
+/**
+ * @openapi
+ * /posts/{id}:
+ *   delete:
+ *     tags: [Posts]
+ *     summary: Delete a post (owner only)
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Post deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       403:
+ *         description: Not authorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Post not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const post = await Post.findById(req.params.id);

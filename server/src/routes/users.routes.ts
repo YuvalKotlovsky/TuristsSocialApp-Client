@@ -21,7 +21,45 @@ function deleteAvatarFile(avatarUrl: string) {
   } catch {}
 }
 
-// PUT /me — must be declared before /:userId to avoid "me" matching the param
+/**
+ * @openapi
+ * /users/me:
+ *   put:
+ *     tags: [Users]
+ *     summary: Update current user's profile
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.put("/me", verifyAccessToken, uploadAvatar, async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user!.userId);
@@ -47,7 +85,37 @@ router.put("/me", verifyAccessToken, uploadAvatar, async (req: Request, res: Res
   }
 });
 
-// GET /:userId
+/**
+ * @openapi
+ * /users/{userId}:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get a user's public profile and post count
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: User profile
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *                 postsCount:
+ *                   type: integer
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get("/:userId", optionalAuth, async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.params.userId).select("-password");
@@ -62,7 +130,36 @@ router.get("/:userId", optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /:userId/posts
+/**
+ * @openapi
+ * /users/{userId}/posts:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get paginated posts by a specific user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Paginated posts by user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedPosts'
+ */
 router.get("/:userId/posts", optionalAuth, async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
