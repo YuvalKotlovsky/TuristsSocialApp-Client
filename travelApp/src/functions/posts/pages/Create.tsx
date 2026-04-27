@@ -7,12 +7,12 @@ export default function Create() {
   const navigate = useNavigate();
 
   const handleCreate = async (values: PostFormValues) => {
-    const created = await createPost({
+    await createPost({
       content: values.content,
       location: values.location,
       imageFile: values.imageFile,
     });
-    navigate(ROUTES.VIEW_POST(created.id), { replace: true });
+    navigate(ROUTES.HOME, { replace: true });
   };
 
   return (

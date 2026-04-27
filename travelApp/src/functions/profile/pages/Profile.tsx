@@ -34,16 +34,22 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (!currentUser?.id) {
+      setLoading(false);
+      return;
+    }
+
     void (async () => {
       try {
-        const { data } = await api.get<ProfileResponse>('/profile');
-        dispatch(updateUser(data.user));
+        const { data } = await api.get<{ posts: Post[] }>(
+          `/users/${currentUser.id}/posts?page=1&limit=20`
+        );
         setPosts(data.posts);
       } finally {
         setLoading(false);
       }
     })();
-  }, [dispatch]);
+  }, [currentUser?.id]);
 
   const handleEditStart = () => {
     setTempName(currentUser?.fullName ?? '');
