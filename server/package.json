@@ -7,24 +7,25 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
-    "express": "*",
-    "mongoose": "*",
+    "@google/generative-ai": "^0.24.1",
+    "bcryptjs": "*",
     "cors": "*",
     "dotenv": "*",
-    "bcryptjs": "*",
+    "express": "*",
     "jsonwebtoken": "*",
-    "multer": "*",
-    "morgan": "*"
+    "mongoose": "*",
+    "morgan": "*",
+    "multer": "*"
   },
   "devDependencies": {
-    "typescript": "*",
-    "ts-node-dev": "*",
-    "@types/express": "*",
-    "@types/cors": "*",
     "@types/bcryptjs": "*",
+    "@types/cors": "*",
+    "@types/express": "*",
     "@types/jsonwebtoken": "*",
+    "@types/morgan": "*",
     "@types/multer": "*",
     "@types/node": "*",
-    "@types/morgan": "*"
+    "ts-node-dev": "*",
+    "typescript": "*"
   }
 }
