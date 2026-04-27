@@ -118,7 +118,6 @@ export default function Home() {
         <div className="px-4 py-4 space-y-3">
           <h1 className="text-xl font-semibold text-foreground">Home</h1>
           <AISearchBar
-            allPosts={allPosts}
             onResults={handleSearchResults}
             onClear={handleSearchClear}
           />

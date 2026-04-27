@@ -1,22 +1,57 @@
 import api from './api';
+import type { Post } from '@/types';
 
-interface PostMeta {
-  id: string;
-  content: string;
-  location?: string | null;
+type ApiUser = Post['createdBy'] & { _id?: string };
+type ApiPost = Omit<Post, 'id' | 'createdBy'> & {
+  id?: string;
+  _id?: string;
+  createdBy?: ApiUser;
+};
+
+interface AiSearchResponse {
+  results: ApiPost[];
+  query: {
+    locations: string[];
+    themes: string[];
+    keywords: string[];
+  };
 }
 
-interface SearchResult {
-  matchingIds: string[];
-  reasoning: Record<string, string>;
+function normalizePost(post: ApiPost): Post {
+  const createdBy = post.createdBy;
+
+  return {
+    id: post.id ?? post._id ?? '',
+    content: post.content,
+    image: post.image ?? null,
+    location: post.location ?? null,
+    createdBy: {
+      id: createdBy?.id ?? createdBy?._id ?? '',
+      fullName: createdBy?.fullName ?? '',
+      email: createdBy?.email ?? '',
+      avatar: createdBy?.avatar ?? null,
+    },
+    createdAt: post.createdAt,
+    likesCount: post.likesCount ?? 0,
+    commentsCount: post.commentsCount ?? 0,
+    isLikedByMe: Boolean(post.isLikedByMe),
+    comments: post.comments,
+  };
 }
 
-export async function naturalLanguageSearch(
-  query: string,
-  posts: PostMeta[]
-): Promise<SearchResult> {
-  const { data } = await api.post<SearchResult>('/ai/search', { query, posts });
-  return data;
+export async function naturalLanguageSearch(query: string): Promise<{
+  results: Post[];
+  query: {
+    locations: string[];
+    themes: string[];
+    keywords: string[];
+  };
+}> {
+  const { data } = await api.post<AiSearchResponse>('/ai/search', { query });
+  return {
+    results: data.results.map(normalizePost),
+    query: data.query,
+  };
 }
 
 export async function generateCaption(

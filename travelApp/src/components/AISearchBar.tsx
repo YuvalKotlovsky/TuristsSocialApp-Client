@@ -4,12 +4,11 @@ import { naturalLanguageSearch } from '@/services/ai.service';
 import type { Post } from '@/types';
 
 interface AISearchBarProps {
-  allPosts: Post[];
   onResults: (filtered: Post[]) => void;
   onClear: () => void;
 }
 
-export default function AISearchBar({ allPosts, onResults, onClear }: AISearchBarProps) {
+export default function AISearchBar({ onResults, onClear }: AISearchBarProps) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasResults, setHasResults] = useState(false);
@@ -25,24 +24,17 @@ export default function AISearchBar({ allPosts, onResults, onClear }: AISearchBa
 
       setLoading(true);
       try {
-        const meta = allPosts.map((p) => ({
-          id: p.id,
-          content: p.content,
-          location: p.location,
-        }));
-
-        const { matchingIds } = await naturalLanguageSearch(q, meta);
-        const filtered = allPosts.filter((p) => matchingIds.includes(p.id));
+        const { results } = await naturalLanguageSearch(q);
         setHasResults(true);
-        onResults(filtered);
+        onResults(results);
       } catch {
-        // On error, show all posts
+        setHasResults(false);
         onClear();
       } finally {
         setLoading(false);
       }
     },
-    [allPosts, onResults, onClear]
+    [onResults, onClear]
   );
 
   useEffect(() => {
