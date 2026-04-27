@@ -7,14 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import type { Post } from '@/types';
 import { getInitials } from '@/lib/utils';
 import { ROUTES } from '@/constants/routes';
+import { getUserPosts, toggleLike } from '@/services/posts.service';
 import { useAppSelector, useAppDispatch } from '@/services/hooks';
 import { updateUser } from '@/services/reducers/auth';
 import api from '@/services/api';
-
-interface ProfileResponse {
-  user: { id: string; fullName: string; email: string; avatar?: string | null };
-  posts: Post[];
-}
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -41,9 +37,8 @@ export default function Profile() {
 
     void (async () => {
       try {
-        const { data } = await api.get<{ posts: Post[] }>(
-          `/users/${currentUser.id}/posts?page=1&limit=20`
-        );
+        const { data } = await api.get<ProfileResponse>('/profile');
+        dispatch(updateUser(data.user));
         setPosts(data.posts);
       } finally {
         setLoading(false);
@@ -102,12 +97,32 @@ export default function Profile() {
     setAvatarPreview(URL.createObjectURL(file));
   };
 
-  const handleLike = (postId: string) => {
+  const handleLike = async (postId: string) => {
+    const previousPosts = posts;
+
     setPosts((prev) =>
       prev.map((p) =>
         p.id !== postId
           ? p
-          : { ...p, isLikedByMe: !p.isLikedByMe, likesCount: p.isLikedByMe ? p.likesCount - 1 : p.likesCount + 1 }
+          : {
+              ...p,
+              isLikedByMe: !p.isLikedByMe,
+              likesCount: p.isLikedByMe ? p.likesCount - 1 : p.likesCount + 1,
+            }
+      )
+    );
+
+    const updated = await toggleLike(postId);
+    if (!updated) {
+      setPosts(previousPosts);
+      return;
+    }
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id !== postId
+          ? p
+          : { ...p, isLikedByMe: updated.isLikedByMe, likesCount: updated.likesCount }
       )
     );
   };

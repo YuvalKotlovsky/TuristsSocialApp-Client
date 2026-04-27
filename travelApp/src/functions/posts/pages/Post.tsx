@@ -44,13 +44,21 @@ export default function PostPage() {
 
   const handleLike = async () => {
     if (!post) return;
+    const prevPost = post;
+
     setPost((prev) =>
       !prev
         ? prev
         : { ...prev, isLikedByMe: !prev.isLikedByMe, likesCount: prev.isLikedByMe ? prev.likesCount - 1 : prev.likesCount + 1 }
     );
+
     const updated = await toggleLike(post.id);
-    if (updated) setPost(updated);
+    if (updated) {
+      setPost(updated);
+      return;
+    }
+
+    setPost(prevPost);
   };
 
   const handleAddComment = async () => {
@@ -97,7 +105,8 @@ export default function PostPage() {
     );
   }
 
-  const isOwner = post.createdBy.id === currentUserId;
+  const authorId = post.createdBy?.id;
+  const isOwner = Boolean(authorId && currentUserId && authorId === currentUserId);
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,13 +132,13 @@ export default function PostPage() {
         <Card className="rounded-xl overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b border-border">
             <Avatar className="size-10">
-              <AvatarImage src={post.createdBy.avatar ?? undefined} alt={post.createdBy.fullName} />
+              <AvatarImage src={post.createdBy?.avatar ?? undefined} alt={post.createdBy?.fullName ?? 'Unknown'} />
               <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                {getInitials(post.createdBy.fullName)}
+                {getInitials(post.createdBy?.fullName ?? 'Unknown')}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="font-medium text-foreground text-sm truncate">{post.createdBy.fullName}</p>
+              <p className="font-medium text-foreground text-sm truncate">{post.createdBy?.fullName ?? 'Unknown'}</p>
               {post.location && (
                 <div className="flex items-center gap-1">
                   <MapPin className="size-3 text-muted-foreground" />
