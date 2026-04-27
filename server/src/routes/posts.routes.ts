@@ -124,6 +124,37 @@ router.put("/:id", uploadPost, async (req: Request, res: Response) => {
   }
 });
 
+// POST /:id/like
+router.post("/:id/like", async (req: Request, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      res.status(404).json({ message: "Post not found" });
+      return;
+    }
+
+    const userId = req.user!.userId;
+    const alreadyLiked = post.likes.some((id) => id.toString() === userId);
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter((id) => id.toString() !== userId);
+    } else {
+      post.likes.push(userId as unknown as typeof post.likes[0]);
+    }
+
+    await post.save();
+    const populated = await post.populate("createdBy", "fullName avatar email");
+    res.json({
+      post: {
+        ...populated.toObject(),
+        isLikedByMe: !alreadyLiked,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to toggle like", error: err });
+  }
+});
+
 // DELETE /:id
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
