@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import path from "path";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
@@ -16,6 +17,8 @@ import aiRoutes from "./routes/ai.routes";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use(
   cors({
