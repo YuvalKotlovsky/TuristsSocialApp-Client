@@ -8,7 +8,8 @@ import { uploadAvatar } from "../middleware/upload.middleware";
 const router = Router();
 
 function buildAvatarUrl(req: Request, filename: string): string {
-  return `${req.protocol}://${req.get("host")}/uploads/avatars/${filename}`;
+  const base = process.env.SERVER_URL ?? `${req.protocol}://${req.get("host")}`;
+  return `${base}/uploads/avatars/${filename}`;
 }
 
 function deleteAvatarFile(avatarUrl: string) {

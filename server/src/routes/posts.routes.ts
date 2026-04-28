@@ -10,7 +10,8 @@ const router = Router();
 router.use(verifyAccessToken);
 
 export function buildImageUrl(req: Request, filename: string, folder: string): string {
-  return `${req.protocol}://${req.get("host")}/uploads/${folder}/${filename}`;
+  const base = process.env.SERVER_URL ?? `${req.protocol}://${req.get("host")}`;
+  return `${base}/uploads/${folder}/${filename}`;
 }
 
 function deleteImageFile(imageUrl: string, folder: string) {
