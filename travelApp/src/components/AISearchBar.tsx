@@ -6,49 +6,113 @@ import type { Post } from '@/types';
 interface AISearchBarProps {
   onResults: (filtered: Post[]) => void;
   onClear: () => void;
+  onSearchStateChange: (active: boolean) => void;
 }
 
-export default function AISearchBar({ onResults, onClear }: AISearchBarProps) {
+function isCanceledError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'AbortError' ||
+      error.name === 'CanceledError' ||
+      'code' in error &&
+        typeof error.code === 'string' &&
+        error.code === 'ERR_CANCELED')
+  );
+}
+
+export default function AISearchBar({ onResults, onClear, onSearchStateChange }: AISearchBarProps) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [hasResults, setHasResults] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const lastSubmittedQueryRef = useRef('');
+  const onResultsRef = useRef(onResults);
+  const onClearRef = useRef(onClear);
+  const onSearchStateChangeRef = useRef(onSearchStateChange);
+
+  useEffect(() => {
+    onResultsRef.current = onResults;
+    onClearRef.current = onClear;
+    onSearchStateChangeRef.current = onSearchStateChange;
+  }, [onResults, onClear, onSearchStateChange]);
 
   const runSearch = useCallback(
     async (q: string) => {
-      if (!q.trim()) {
-        setHasResults(false);
-        onClear();
+      const trimmedQuery = q.trim();
+      if (!trimmedQuery) {
         return;
       }
 
+      if (trimmedQuery === lastSubmittedQueryRef.current) {
+        return;
+      }
+
+      lastSubmittedQueryRef.current = trimmedQuery;
+      requestIdRef.current += 1;
+      const currentRequestId = requestIdRef.current;
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setLoading(true);
       try {
-        const { results } = await naturalLanguageSearch(q);
-        setHasResults(true);
-        onResults(results);
-      } catch {
-        setHasResults(false);
-        onClear();
+        const { results } = await naturalLanguageSearch(trimmedQuery, controller.signal);
+        if (currentRequestId !== requestIdRef.current) {
+          return;
+        }
+
+        setHasSearched(true);
+        onResultsRef.current(results);
+      } catch (error) {
+        if (isCanceledError(error) || currentRequestId !== requestIdRef.current) {
+          return;
+        }
+
+        setHasSearched(true);
+        onResultsRef.current([]);
       } finally {
-        setLoading(false);
+        if (currentRequestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     },
-    [onResults, onClear]
+    []
   );
 
   useEffect(() => {
+    const trimmedQuery = query.trim();
+
+    onSearchStateChangeRef.current(Boolean(trimmedQuery));
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => void runSearch(query), 600);
+
+    if (!trimmedQuery) {
+      abortRef.current?.abort();
+      requestIdRef.current += 1;
+      lastSubmittedQueryRef.current = '';
+      setLoading(false);
+      setHasSearched(false);
+      onClearRef.current();
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => void runSearch(trimmedQuery), 600);
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, runSearch]);
 
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
+
   const handleClear = () => {
     setQuery('');
-    setHasResults(false);
-    onClear();
+    setHasSearched(false);
   };
 
   return (
@@ -66,7 +130,7 @@ export default function AISearchBar({ onResults, onClear }: AISearchBarProps) {
           placeholder="Search with AI… e.g. &quot;beach sunsets in Asia&quot;"
           className="h-10 w-full rounded-xl border border-input bg-background pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
-        {(query || hasResults) && (
+        {(query || hasSearched) && (
           <button
             type="button"
             onClick={handleClear}
@@ -77,7 +141,7 @@ export default function AISearchBar({ onResults, onClear }: AISearchBarProps) {
           </button>
         )}
       </div>
-      {hasResults && !loading && (
+      {hasSearched && !loading && query.trim() && (
         <p className="mt-1 text-xs text-muted-foreground">
           Showing AI-filtered results for &quot;{query}&quot;
         </p>

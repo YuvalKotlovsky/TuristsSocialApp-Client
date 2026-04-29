@@ -6,6 +6,13 @@ import type { Post } from '@/types';
 import { ROUTES } from '@/constants/routes';
 import AISearchBar from '@/components/AISearchBar';
 
+function haveSamePostOrder(current: Post[], next: Post[]): boolean {
+  return (
+    current.length === next.length &&
+    current.every((post, index) => post.id === next[index]?.id)
+  );
+}
+
 export default function Home() {
   const navigate = useNavigate();
 
@@ -19,6 +26,16 @@ export default function Home() {
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const allPostsRef = useRef<Post[]>([]);
+  const isSearchingRef = useRef(false);
+
+  useEffect(() => {
+    allPostsRef.current = allPosts;
+  }, [allPosts]);
+
+  useEffect(() => {
+    isSearchingRef.current = isSearching;
+  }, [isSearching]);
 
   const loadPage = useCallback(
     async (pageNum: number, append: boolean) => {
@@ -30,7 +47,12 @@ export default function Home() {
         const newPosts = data.posts;
 
         setAllPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
-        setDisplayedPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
+        if (!isSearchingRef.current) {
+          setDisplayedPosts((prev) => {
+            const nextPosts = append ? [...prev, ...newPosts] : newPosts;
+            return haveSamePostOrder(prev, nextPosts) ? prev : nextPosts;
+          });
+        }
         setHasMore(data.hasMore);
       } finally {
         setLoading(false);
@@ -102,15 +124,20 @@ export default function Home() {
     setAllPosts(sync);
   };
 
-  const handleSearchResults = (filtered: Post[]) => {
-    setIsSearching(true);
-    setDisplayedPosts(filtered);
-  };
+  const handleSearchResults = useCallback((filtered: Post[]) => {
+    setDisplayedPosts((prev) => (haveSamePostOrder(prev, filtered) ? prev : filtered));
+  }, []);
 
-  const handleSearchClear = () => {
+  const handleSearchClear = useCallback(() => {
     setIsSearching(false);
-    setDisplayedPosts(allPosts);
-  };
+    setDisplayedPosts((prev) =>
+      haveSamePostOrder(prev, allPostsRef.current) ? prev : allPostsRef.current
+    );
+  }, []);
+
+  const handleSearchStateChange = useCallback((active: boolean) => {
+    setIsSearching(active);
+  }, []);
 
   return (
     <div className="min-h-screen pb-20 bg-background w-full max-w-3xl mx-auto">
@@ -120,6 +147,7 @@ export default function Home() {
           <AISearchBar
             onResults={handleSearchResults}
             onClear={handleSearchClear}
+            onSearchStateChange={handleSearchStateChange}
           />
         </div>
       </header>
