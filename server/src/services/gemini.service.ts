@@ -33,92 +33,15 @@ function extractJsonArray(rawText: string): string {
   return cleaned.slice(start, end + 1);
 }
 
-const STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "for",
-  "from",
-  "in",
-  "into",
-  "of",
-  "on",
-  "or",
-  "the",
-  "to",
-  "trip",
-  "travel",
-  "with",
-  "טיול",
-  "טיולים",
-  "של",
-  "עם",
-  "על",
-  "גם",
-  "זה",
-  "זו",
-]);
-
-function buildQueryTerms(query: string): string[] {
-  const terms = new Set<string>();
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (normalizedQuery) {
-    terms.add(normalizedQuery);
-  }
-
-  for (const rawToken of normalizedQuery.split(/[^\p{L}\p{N}]+/u)) {
-    const token = rawToken.trim();
-    if (!token || STOP_WORDS.has(token)) {
-      continue;
-    }
-
-    terms.add(token);
-
-    if (token.length > 3 && token.endsWith("s")) {
-      terms.add(token.slice(0, -1));
-    }
-
-    if (token.length > 4 && token.endsWith("es")) {
-      terms.add(token.slice(0, -2));
-    }
-
-    if (token.length > 4 && token.endsWith("ing")) {
-      terms.add(token.slice(0, -3));
-    }
-
-    if (token.length > 3 && (token.endsWith("ים") || token.endsWith("ות"))) {
-      terms.add(token.slice(0, -2));
-    }
-  }
-
-  return Array.from(terms);
-}
-
 function keywordFallback(query: string, posts: PostSummary[]): string[] {
-  const queryTerms = buildQueryTerms(query);
-
-  if (queryTerms.length === 0) {
-    return [];
-  }
-
+  const q = query.toLowerCase();
   return posts
-    .map((post) => {
-      const haystack = `${post.content} ${post.location ?? ""}`.toLowerCase();
-      const score = queryTerms.reduce((total, term) => {
-        if (!term || !haystack.includes(term)) {
-          return total;
-        }
-
-        return total + Math.max(1, Math.min(term.length, 4));
-      }, 0);
-
-      return { id: post.id, score };
-    })
-    .filter((post) => post.score > 0)
-    .sort((left, right) => right.score - left.score)
-    .map((post) => post.id);
+    .filter(
+      (p) =>
+        p.content.toLowerCase().includes(q) ||
+        (p.location ?? "").toLowerCase().includes(q)
+    )
+    .map((p) => p.id);
 }
 
 export async function findSemanticMatches(

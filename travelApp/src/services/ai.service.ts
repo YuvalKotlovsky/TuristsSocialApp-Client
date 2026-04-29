@@ -10,7 +10,7 @@ type ApiPost = Omit<Post, 'id' | 'createdBy'> & {
 
 interface AiSearchResponse {
   results: ApiPost[];
-  query?: {
+  query: {
     locations: string[];
     themes: string[];
     keywords: string[];
@@ -40,7 +40,7 @@ function normalizePost(post: ApiPost): Post {
   };
 }
 
-export async function naturalLanguageSearch(query: string, signal?: AbortSignal): Promise<{
+export async function naturalLanguageSearch(query: string): Promise<{
   results: Post[];
   query: {
     locations: string[];
@@ -49,15 +49,10 @@ export async function naturalLanguageSearch(query: string, signal?: AbortSignal)
     expandedKeywords: string[];
   };
 }> {
-  const { data } = await api.post<AiSearchResponse>('/ai/search', { query }, { signal });
+  const { data } = await api.post<AiSearchResponse>('/ai/search', { query });
   return {
     results: data.results.map(normalizePost),
-    query: {
-      locations: data.query?.locations ?? [],
-      themes: data.query?.themes ?? [],
-      keywords: data.query?.keywords ?? [],
-      expandedKeywords: data.query?.expandedKeywords ?? [],
-    },
+    query: data.query,
   };
 }
 
