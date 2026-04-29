@@ -67,6 +67,9 @@ export async function findSemanticMatches(
     ...(p.location ? { location: p.location } : {}),
   }));
 
+  console.log("[gemini] query:", query);
+  console.log("[gemini] posts sent to Gemini:", JSON.stringify(postList, null, 2));
+
   const prompt = `Query: "${query}"\n\nPosts:\n${JSON.stringify(
     postList,
     null,
@@ -82,6 +85,7 @@ export async function findSemanticMatches(
 
     const result = await model.generateContent(prompt);
     const rawText = result.response.text();
+    console.log("[gemini] raw response:", rawText);
     const jsonText = extractJsonArray(rawText);
     const parsed = JSON.parse(jsonText) as unknown;
 
