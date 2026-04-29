@@ -95,6 +95,8 @@ router.get("/feed", async (req: Request, res: Response) => {
 
     res.json({ posts: postsWithLike, total, page, totalPages, hasMore: page < totalPages });
   } catch (err) {
+    console.error("[GET /feed] error:", err instanceof Error ? err.message : err);
+    if (err instanceof Error) console.error(err.stack);
     res.status(500).json({ message: "Failed to fetch feed", error: err });
   }
 });
