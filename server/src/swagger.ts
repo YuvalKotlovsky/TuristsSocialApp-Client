@@ -7,7 +7,7 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: "3.0.0",
     info: { title: "Travel App API", version: "1.0.0" },
-    servers: [{ url: "http://localhost:5001/api" }],
+    servers: [{ url: process.env.SERVER_URL + "/api" }],
     components: {
       securitySchemes: {
         BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
@@ -63,7 +63,10 @@ const options: swaggerJsdoc.Options = {
         PaginatedPosts: {
           type: "object",
           properties: {
-            posts: { type: "array", items: { $ref: "#/components/schemas/Post" } },
+            posts: {
+              type: "array",
+              items: { $ref: "#/components/schemas/Post" },
+            },
             total: { type: "integer" },
             page: { type: "integer" },
             totalPages: { type: "integer" },
