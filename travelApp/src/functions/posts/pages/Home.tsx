@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import PostsFeed from '../components/PostFeed';
-import { getFeed, toggleLike } from '@/services/posts.service';
-import type { Post } from '@/types';
-import { ROUTES } from '@/constants/routes';
-import AISearchBar from '@/components/AISearchBar';
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import PostsFeed from "../components/PostFeed";
+import { getFeed, toggleLike } from "@/services/posts.service";
+import type { Post } from "@/types";
+import { ROUTES } from "@/constants/routes";
+import AISearchBar from "@/components/AISearchBar";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -20,25 +20,22 @@ export default function Home() {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  const loadPage = useCallback(
-    async (pageNum: number, append: boolean) => {
-      if (pageNum === 1) setLoading(true);
-      else setLoadingMore(true);
+  const loadPage = useCallback(async (pageNum: number, append: boolean) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
 
-      try {
-        const data = await getFeed(pageNum, 10);
-        const newPosts = data.posts;
+    try {
+      const data = await getFeed(pageNum, 10);
+      const newPosts = data.posts;
 
-        setAllPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
-        setDisplayedPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
-        setHasMore(data.hasMore);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    []
-  );
+      setAllPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
+      setDisplayedPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
+      setHasMore(data.hasMore);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, []);
 
   // Initial load
   useEffect(() => {
@@ -79,7 +76,11 @@ export default function Home() {
       posts.map((p) =>
         p.id !== postId
           ? p
-          : { ...p, isLikedByMe: !p.isLikedByMe, likesCount: p.isLikedByMe ? p.likesCount - 1 : p.likesCount + 1 }
+          : {
+              ...p,
+              isLikedByMe: !p.isLikedByMe,
+              likesCount: p.isLikedByMe ? p.likesCount - 1 : p.likesCount + 1,
+            }
       );
 
     setDisplayedPosts(optimistic);
@@ -96,21 +97,25 @@ export default function Home() {
       posts.map((p) =>
         p.id !== postId
           ? p
-          : { ...p, isLikedByMe: updated.isLikedByMe, likesCount: updated.likesCount }
+          : {
+              ...p,
+              isLikedByMe: updated.isLikedByMe,
+              likesCount: updated.likesCount,
+            }
       );
     setDisplayedPosts(sync);
     setAllPosts(sync);
   };
 
-  const handleSearchResults = (filtered: Post[]) => {
+  const handleSearchResults = useCallback((filtered: Post[]) => {
     setIsSearching(true);
     setDisplayedPosts(filtered);
-  };
+  }, []);
 
-  const handleSearchClear = () => {
+  const handleSearchClear = useCallback(() => {
     setIsSearching(false);
     setDisplayedPosts(allPosts);
-  };
+  }, [allPosts]);
 
   return (
     <div className="min-h-screen pb-20 bg-background w-full max-w-3xl mx-auto">
@@ -129,7 +134,7 @@ export default function Home() {
           <p className="text-muted-foreground">Loading…</p>
         ) : displayedPosts.length === 0 ? (
           <p className="text-center text-muted-foreground py-12">
-            {isSearching ? 'No posts matched your search.' : 'No posts yet.'}
+            {isSearching ? "No posts matched your search." : "No posts yet."}
           </p>
         ) : (
           <>
@@ -141,7 +146,10 @@ export default function Home() {
 
             {/* Infinite scroll sentinel */}
             {!isSearching && (
-              <div ref={sentinelRef} className="h-8 mt-4 flex items-center justify-center">
+              <div
+                ref={sentinelRef}
+                className="h-8 mt-4 flex items-center justify-center"
+              >
                 {loadingMore && (
                   <p className="text-sm text-muted-foreground">Loading more…</p>
                 )}
