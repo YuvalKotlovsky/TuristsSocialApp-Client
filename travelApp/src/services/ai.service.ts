@@ -14,6 +14,7 @@ interface AiSearchResponse {
     locations: string[];
     themes: string[];
     keywords: string[];
+    expandedKeywords: string[];
   };
 }
 
@@ -45,6 +46,7 @@ export async function naturalLanguageSearch(query: string): Promise<{
     locations: string[];
     themes: string[];
     keywords: string[];
+    expandedKeywords: string[];
   };
 }> {
   const { data } = await api.post<AiSearchResponse>('/ai/search', { query });
