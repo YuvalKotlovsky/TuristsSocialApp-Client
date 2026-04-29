@@ -102,15 +102,15 @@ export default function Home() {
     setAllPosts(sync);
   };
 
-  const handleSearchResults = useCallback((filtered: Post[]) => {
+  const handleSearchResults = (filtered: Post[]) => {
     setIsSearching(true);
     setDisplayedPosts(filtered);
-  }, []);
+  };
 
-  const handleSearchClear = useCallback(() => {
+  const handleSearchClear = () => {
     setIsSearching(false);
     setDisplayedPosts(allPosts);
-  }, [allPosts]);
+  };
 
   return (
     <div className="min-h-screen pb-20 bg-background w-full max-w-3xl mx-auto">
