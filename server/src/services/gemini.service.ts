@@ -1,208 +1,82 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export interface QueryIntents {
-  locations: string[];
-  themes: string[];
-  keywords: string[];
-  expandedKeywords: string[];
-}
+const MODEL_NAME = "gemini-1.5-flash";
 
-export interface RankingCandidatePost {
+export interface PostSummary {
   id: string;
   content: string;
-  location?: string | null;
+  location?: string;
 }
 
-export interface RankedPostMatch {
-  postId: string;
-  score: number;
-  reason: string;
-}
+const SEMANTIC_SEARCH_PROMPT = `You are a semantic search engine for a multilingual travel blog.
 
-const MODEL_NAME = "gemini-1.5-flash";
-const SYSTEM_PROMPT =
-  "You are a bilingual (Hebrew + English) travel search assistant. Analyze the user query and return ONLY valid JSON with this exact shape: { \"locations\": string[], \"themes\": string[], \"keywords\": string[], \"expandedKeywords\": string[] }. Rules: 1) Include locations in original language and English when possible (for example, \"איטליה\" and \"Italy\"). 2) themes should include travel intents such as beaches, food, nightlife, nature, shopping, adventure, romantic, family. 3) keywords are the important words from the user query. 4) expandedKeywords must include useful synonyms and related words in Hebrew and English for better travel-post retrieval. 5) Do not include explanations, markdown, or text outside JSON.";
-const RANKING_SYSTEM_PROMPT =
-  "You are a bilingual (Hebrew + English) travel semantic ranking assistant. Return ONLY valid JSON with shape: { \"matches\": [{ \"postId\": \"string\", \"score\": number, \"reason\": \"string\" }] }. Task: score post relevance to a travel query by meaning/context, not exact words only. Consider location relevance, travel style, mood, destination fit, and intent. Score range is 0-100. Include only posts with score >= 50. Keep reasons concise.";
+Your task: given a search query and a list of travel posts, return the IDs of posts that are semantically or thematically relevant to the query.
 
-function dedupeTerms(terms: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
+Rules:
+- The query and posts may be in Hebrew, English, or mixed. Understand MEANING regardless of language.
+- Match by CONCEPT and CONTEXT, not by literal word overlap.
+  * "beach" → match posts about ocean, surf, waves, sand, snorkeling, or coastal destinations (Philippines, Bali, Tel Aviv beach, etc.)
+  * "הר" (mountain in Hebrew) → match posts about hiking, Alps, snow, ski, trekking, peaks, elevation
+  * "אוכל" (food) → match posts about restaurants, cuisine, street food, local dishes, markets
+  * "ג'ונגל" (jungle) → match posts about rainforest, Amazon, dense forest, tropical nature
+- Be liberal: include a post if there is reasonable thematic overlap, even if the query word never appears.
+- Exclude posts that are clearly unrelated.
 
-  for (const term of terms) {
-    const key = term.toLocaleLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(term);
-  }
+Return ONLY a valid JSON array of matching post IDs (strings). Example: ["abc123","def456"]
+Return [] if nothing matches. Do not include any explanation or extra text.`;
 
-  return result;
-}
-
-function tokenizeQuery(query: string): string[] {
-  return dedupeTerms(
-    query
-      .split(/[\s,.;:!?()\[\]{}"'`~\\/|+-]+/u)
-      .map((part) => part.trim())
-      .filter((part) => part.length >= 2)
-  );
-}
-
-function sanitizeStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function sanitizeIntents(value: unknown): QueryIntents {
-  if (!value || typeof value !== "object") {
-    return { locations: [], themes: [], keywords: [], expandedKeywords: [] };
-  }
-
-  const intents = value as Partial<Record<keyof QueryIntents, unknown>>;
-
-  return {
-    locations: dedupeTerms(sanitizeStringArray(intents.locations)),
-    themes: dedupeTerms(sanitizeStringArray(intents.themes)),
-    keywords: dedupeTerms(sanitizeStringArray(intents.keywords)),
-    expandedKeywords: dedupeTerms(sanitizeStringArray(intents.expandedKeywords)),
-  };
-}
-
-function extractJsonObject(rawText: string): string {
+function extractJsonArray(rawText: string): string {
   const cleaned = rawText.trim();
-
-  const firstBrace = cleaned.indexOf("{");
-  const lastBrace = cleaned.lastIndexOf("}");
-
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-    return cleaned;
-  }
-
-  return cleaned.slice(firstBrace, lastBrace + 1);
+  const start = cleaned.indexOf("[");
+  const end = cleaned.lastIndexOf("]");
+  if (start === -1 || end === -1 || end <= start) return "[]";
+  return cleaned.slice(start, end + 1);
 }
 
-function sanitizeMatches(value: unknown, candidatePostIds: Set<string>): RankedPostMatch[] {
-  if (!Array.isArray(value)) return [];
-
-  const output: RankedPostMatch[] = [];
-  const seen = new Set<string>();
-
-  for (const item of value) {
-    if (!item || typeof item !== "object") continue;
-
-    const rawPostId = (item as { postId?: unknown }).postId;
-    const rawScore = (item as { score?: unknown }).score;
-    const rawReason = (item as { reason?: unknown }).reason;
-
-    if (typeof rawPostId !== "string") continue;
-    const postId = rawPostId.trim();
-    if (!postId || !candidatePostIds.has(postId) || seen.has(postId)) continue;
-
-    const score = typeof rawScore === "number" ? rawScore : Number(rawScore);
-    if (!Number.isFinite(score)) continue;
-
-    const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
-    if (normalizedScore < 50) continue;
-
-    const reason = typeof rawReason === "string" ? rawReason.trim() : "";
-
-    seen.add(postId);
-    output.push({
-      postId,
-      score: normalizedScore,
-      reason,
-    });
-  }
-
-  output.sort((a, b) => b.score - a.score);
-  return output;
+function keywordFallback(query: string, posts: PostSummary[]): string[] {
+  const q = query.toLowerCase();
+  return posts
+    .filter(
+      (p) =>
+        p.content.toLowerCase().includes(q) ||
+        (p.location ?? "").toLowerCase().includes(q)
+    )
+    .map((p) => p.id);
 }
 
-function fallback(query: string): QueryIntents {
-  const words = tokenizeQuery(query);
-  const keywords = dedupeTerms([query, ...words].filter((term) => term.trim().length > 0));
-
-  return {
-    locations: [],
-    themes: [],
-    keywords,
-    expandedKeywords: words,
-  };
-}
-
-export async function extractQueryIntents(query: string): Promise<QueryIntents> {
-  const trimmedQuery = String(query ?? "").trim();
-  if (!trimmedQuery) {
-    return fallback("");
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return fallback(trimmedQuery);
-  }
-
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction: SYSTEM_PROMPT,
-    });
-
-    const result = await model.generateContent(trimmedQuery);
-    const rawText = result.response.text();
-    const jsonText = extractJsonObject(rawText);
-    const parsed = JSON.parse(jsonText) as unknown;
-    const intents = sanitizeIntents(parsed);
-
-    if (
-      intents.locations.length ||
-      intents.themes.length ||
-      intents.keywords.length ||
-      intents.expandedKeywords.length
-    ) {
-      return intents;
-    }
-
-    return fallback(trimmedQuery);
-  } catch {
-    return fallback(trimmedQuery);
-  }
-}
-
-export async function rankPostsForQuery(
+export async function findSemanticMatches(
   query: string,
-  intents: QueryIntents,
-  posts: RankingCandidatePost[]
-): Promise<RankedPostMatch[] | null> {
+  posts: PostSummary[]
+): Promise<string[]> {
+  if (!query.trim() || posts.length === 0) return [];
+
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || posts.length === 0) {
-    return null;
-  }
+  if (!apiKey) return keywordFallback(query, posts);
+
+  const postList = posts.map((p) => ({
+    id: p.id,
+    content: p.content.slice(0, 250),
+    ...(p.location ? { location: p.location } : {}),
+  }));
+
+  const prompt = `Query: "${query}"\n\nPosts:\n${JSON.stringify(postList, null, 0)}`;
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: MODEL_NAME,
-      systemInstruction: RANKING_SYSTEM_PROMPT,
-    });
-
-    const prompt = JSON.stringify({
-      query,
-      intents,
-      posts,
+      systemInstruction: SEMANTIC_SEARCH_PROMPT,
     });
 
     const result = await model.generateContent(prompt);
     const rawText = result.response.text();
-    const jsonText = extractJsonObject(rawText);
-    const parsed = JSON.parse(jsonText) as { matches?: unknown };
-    const candidatePostIds = new Set(posts.map((post) => post.id));
-    return sanitizeMatches(parsed.matches, candidatePostIds);
+    const jsonText = extractJsonArray(rawText);
+    const parsed = JSON.parse(jsonText) as unknown;
+
+    if (!Array.isArray(parsed)) return keywordFallback(query, posts);
+
+    return parsed.filter((id): id is string => typeof id === "string");
   } catch {
-    return null;
+    return keywordFallback(query, posts);
   }
 }

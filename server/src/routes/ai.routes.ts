@@ -1,28 +1,53 @@
 import { Router, Request, Response } from "express";
 import { Comment, Post } from "../models";
 import { verifyAccessToken } from "../middleware/auth.middleware";
-import { extractQueryIntents, rankPostsForQuery } from "../services/gemini.service";
+import { findSemanticMatches } from "../services/gemini.service";
 
 const router = Router();
 
 router.use(verifyAccessToken);
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-const REGEX_CANDIDATE_LIMIT = 50;
-const RECENT_CANDIDATE_LIMIT = 40;
-const MIN_CANDIDATES_FOR_RANKING = 20;
-
-function uniquePostsById<T extends { _id: unknown }>(posts: T[]): T[] {
-  const map = new Map<string, T>();
-  for (const post of posts) {
-    map.set(String(post._id), post);
-  }
-  return Array.from(map.values());
-}
-
+/**
+ * @openapi
+ * /ai/search:
+ *   post:
+ *     tags: [AI]
+ *     summary: Semantic search across posts using Gemini
+ *     description: >
+ *       Understands the meaning of the query (Hebrew or English) and returns
+ *       posts that are contextually relevant, even without exact word matches.
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [query]
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 example: "beach vacation"
+ *     responses:
+ *       200:
+ *         description: Semantically matched posts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *       400:
+ *         description: Query is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.post("/search", async (req: Request, res: Response) => {
   try {
     const query = String(req.body.query ?? "").trim();
@@ -31,77 +56,30 @@ router.post("/search", async (req: Request, res: Response) => {
       return;
     }
 
-    const intents = await extractQueryIntents(query);
+    const candidatePosts = await Post.find()
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate("createdBy", "fullName avatar email");
 
-    const searchTerms = Array.from(
-      new Set(
-        [
-          ...intents.locations,
-          ...intents.themes,
-          ...intents.keywords,
-          ...intents.expandedKeywords,
-        ]
-          .map((term) => term.trim())
-          .filter((term) => term.length > 0)
-      )
-    );
-
-    const orConditions = searchTerms.flatMap((term) => {
-      const pattern = escapeRegex(term);
-      return [
-        { content: { $regex: pattern, $options: "i" } },
-        { location: { $regex: pattern, $options: "i" } },
-      ];
-    });
-
-    const regexPosts =
-      orConditions.length > 0
-        ? await Post.find({ $or: orConditions })
-            .sort({ createdAt: -1 })
-            .limit(REGEX_CANDIDATE_LIMIT)
-            .populate("createdBy", "fullName avatar email")
-        : [];
-
-    const needsExpansion = regexPosts.length < MIN_CANDIDATES_FOR_RANKING;
-    const recentPosts = needsExpansion
-      ? await Post.find()
-          .sort({ createdAt: -1 })
-          .limit(RECENT_CANDIDATE_LIMIT)
-          .populate("createdBy", "fullName avatar email")
-      : [];
-
-    const candidatePosts = uniquePostsById([...regexPosts, ...recentPosts]);
-    const rankingInput = candidatePosts.map((post) => ({
-      id: post._id.toString(),
-      content: post.content,
-      location: post.location ?? null,
+    const summaries = candidatePosts.map((p) => ({
+      id: p._id.toString(),
+      content: p.content,
+      location: p.location,
     }));
 
-    const rankedMatches = await rankPostsForQuery(query, intents, rankingInput);
+    const matchingIds = await findSemanticMatches(query, summaries);
 
-    const posts =
-      rankedMatches !== null
-        ? (() => {
-            const scoreByPostId = new Map(
-              rankedMatches.map((match) => [match.postId, match.score])
-            );
-
-            return candidatePosts
-              .filter((post) => scoreByPostId.has(post._id.toString()))
-              .sort(
-                (a, b) =>
-                  (scoreByPostId.get(b._id.toString()) ?? 0) -
-                  (scoreByPostId.get(a._id.toString()) ?? 0)
-              );
-          })()
-        : regexPosts;
-
-    if (posts.length === 0) {
-      res.json({ results: [], query: intents });
+    if (matchingIds.length === 0) {
+      res.json({ results: [] });
       return;
     }
 
-    const postIds = posts.map((post) => post._id);
+    const postById = new Map(candidatePosts.map((p) => [p._id.toString(), p]));
+    const orderedPosts = matchingIds
+      .map((id) => postById.get(id))
+      .filter(Boolean) as typeof candidatePosts;
+
+    const postIds = orderedPosts.map((p) => p._id);
     const commentCountRows =
       postIds.length > 0
         ? await Comment.aggregate<{ _id: string; count: number }>([
@@ -114,23 +92,15 @@ router.post("/search", async (req: Request, res: Response) => {
       commentCountRows.map((row) => [String(row._id), row.count])
     );
 
-    const rankedByPostId = new Map(
-      (rankedMatches ?? []).map((match) => [match.postId, match])
-    );
+    const results = orderedPosts.map((post) => ({
+      ...post.toObject(),
+      isLikedByMe: post.likes.some(
+        (id) => id != null && id.toString() === req.user!.userId
+      ),
+      commentsCount: commentCountByPostId.get(post._id.toString()) ?? 0,
+    }));
 
-    const results = posts.map((post) => {
-      const ranked = rankedByPostId.get(post._id.toString());
-
-      return {
-        ...post.toObject(),
-        isLikedByMe: post.likes.some((id) => id.toString() === req.user!.userId),
-        commentsCount: commentCountByPostId.get(post._id.toString()) ?? 0,
-        aiScore: ranked?.score,
-        aiReason: ranked?.reason,
-      };
-    });
-
-    res.json({ results, query: intents });
+    res.json({ results });
   } catch (err) {
     res.status(500).json({ message: "Failed to search posts", error: err });
   }
