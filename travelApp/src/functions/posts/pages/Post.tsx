@@ -12,6 +12,7 @@ import {
   getComments,
   addComment,
   deleteComment,
+  deletePost,
 } from '@/services/posts.service';
 import type { Comment, Post } from '@/types';
 import { getInitials } from '@/lib/utils';
@@ -21,13 +22,15 @@ import { useAppSelector } from '@/services/hooks';
 export default function PostPage() {
   const navigate = useNavigate();
   const { postId } = useParams<{ postId: string }>();
-  const currentUserId = useAppSelector((s) => s.auth.user?.id);
+  const currentUserId = useAppSelector((s) => s.auth.user?.id ?? s.auth.user?._id);
 
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!postId) return;
@@ -84,6 +87,24 @@ export default function PostPage() {
     setPost((prev) => prev ? { ...prev, commentsCount: Math.max(0, prev.commentsCount - 1) } : prev);
   };
 
+  const handleDeletePost = async () => {
+    if (!post || isDeleting) return;
+
+    const confirmed = window.confirm('Are you sure you want to delete this post?');
+    if (!confirmed) return;
+
+    setDeleteError(null);
+    setIsDeleting(true);
+
+    try {
+      await deletePost(post.id);
+      navigate(ROUTES.HOME);
+    } catch {
+      setDeleteError('Failed to delete post. Please try again.');
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -105,7 +126,7 @@ export default function PostPage() {
     );
   }
 
-  const authorId = post.createdBy?.id;
+  const authorId = post.createdBy?.id ?? post.createdBy?._id;
   const isOwner = Boolean(authorId && currentUserId && authorId === currentUserId);
 
   return (
@@ -117,18 +138,35 @@ export default function PostPage() {
           </Button>
           <h1 className="flex-1 text-lg font-semibold text-foreground truncate">Post</h1>
           {isOwner && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(ROUTES.EDIT_POST(post.id))}
-            >
-              <Pencil className="size-4 mr-2" /> Edit
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(ROUTES.EDIT_POST(post.id))}
+              >
+                <Pencil className="size-4 mr-2" /> Edit
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeletePost}
+                disabled={isDeleting}
+              >
+                <Trash2 className="size-4 mr-2" />
+                {isDeleting ? 'Deleting…' : 'Delete'}
+              </Button>
+            </div>
           )}
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        {deleteError && (
+          <Card className="rounded-xl p-4 text-sm text-destructive border-destructive/40">
+            {deleteError}
+          </Card>
+        )}
+
         <Card className="rounded-xl overflow-hidden">
           <div className="flex items-center gap-3 p-4 border-b border-border">
             <Avatar className="size-10">

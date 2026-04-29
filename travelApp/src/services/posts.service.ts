@@ -23,6 +23,7 @@ function normalizePost(post: ApiPost): Post {
     location: post.location ?? null,
     createdBy: {
       id: createdBy?.id ?? createdBy?._id ?? '',
+      _id: createdBy?._id,
       fullName: createdBy?.fullName ?? '',
       email: createdBy?.email ?? '',
       avatar: createdBy?.avatar ?? null,
@@ -44,6 +45,7 @@ function normalizeComment(comment: ApiComment): Comment {
     content: comment.content,
     createdBy: {
       id: createdBy?.id ?? createdBy?._id ?? '',
+      _id: createdBy?._id,
       fullName: createdBy?.fullName ?? '',
       email: createdBy?.email ?? '',
       avatar: createdBy?.avatar ?? null,
