@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-2.0-flash";
+const MODEL_NAME = "gemini-3-flash-preview";
 
 export interface PostSummary {
   id: string;
@@ -68,7 +68,10 @@ export async function findSemanticMatches(
   }));
 
   console.log("[gemini] query:", query);
-  console.log("[gemini] posts sent to Gemini:", JSON.stringify(postList, null, 2));
+  console.log(
+    "[gemini] posts sent to Gemini:",
+    JSON.stringify(postList, null, 2)
+  );
 
   const prompt = `Query: "${query}"\n\nPosts:\n${JSON.stringify(
     postList,
