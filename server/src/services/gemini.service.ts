@@ -92,7 +92,8 @@ export async function findSemanticMatches(
     if (!Array.isArray(parsed)) return keywordFallback(query, posts);
 
     return parsed.filter((id): id is string => typeof id === "string");
-  } catch {
+  } catch (error) {
+    console.log("[gemini] ERROR:", error);
     return keywordFallback(query, posts);
   }
 }
