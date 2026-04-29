@@ -89,7 +89,7 @@ router.get("/feed", async (req: Request, res: Response) => {
 
     const postsWithLike = posts.map((post) => ({
       ...post.toObject(),
-      isLikedByMe: post.likes.some((id) => id.toString() === req.user!.userId),
+      isLikedByMe: post.likes.some((id) => id != null && id.toString() === req.user!.userId),
       commentsCount: commentCountByPostId.get(post._id.toString()) ?? 0,
     }));
 
@@ -145,7 +145,7 @@ router.get("/:id", async (req: Request, res: Response) => {
     res.json({
       post: {
         ...post.toObject(),
-        isLikedByMe: post.likes.some((id) => id.toString() === req.user!.userId),
+        isLikedByMe: post.likes.some((id) => id != null && id.toString() === req.user!.userId),
         commentsCount,
       },
     });
@@ -352,7 +352,7 @@ router.post("/:id/like", async (req: Request, res: Response) => {
     }
 
     const userId = req.user!.userId;
-    const alreadyLiked = post.likes.some((id) => id.toString() === userId);
+    const alreadyLiked = post.likes.some((id) => id != null && id.toString() === userId);
 
     if (alreadyLiked) {
       post.likes = post.likes.filter((id) => id.toString() !== userId);
