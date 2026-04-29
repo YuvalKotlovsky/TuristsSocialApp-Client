@@ -424,8 +424,13 @@ router.delete("/:id", async (req: Request, res: Response) => {
       return;
     }
     if (post.image) deleteImageFile(post.image, "posts");
+    const deletedComments = await Comment.deleteMany({ postId: post._id });
     await post.deleteOne();
-    res.json({ message: "Post deleted" });
+    res.json({
+      message: "Post deleted successfully",
+      postId: post._id,
+      deletedCommentsCount: deletedComments.deletedCount,
+    });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete post", error: err });
   }
